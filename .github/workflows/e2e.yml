@@ -1,5 +1,5 @@
 ---
-name: End-to-End
+name: E2E
 
 on:
   pull_request:
@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   e2e:
-    name: End-to-End
+    name: E2E
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -330,3 +330,16 @@ jobs:
           printf '%s\n' "$body"
           echo "$body" | grep -qF 'Explicit pr-number works' || { printf 'FAIL: content missing\n'; exit 1; }
           printf 'PASS\n'
+
+      # -- Cleanup: delete all E2E test comments (runs on success and failure) -----------------------------------------
+      - name: Cleanup - Delete E2E Test Comments
+        if: always()
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --paginate --jq '.[] | select(.body | contains("<!-- remark:e2e-")) | .id' |
+          while read -r id; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/comments/$id"
+            printf 'deleted comment %s\n' "$id"
+          done
