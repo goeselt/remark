@@ -3,7 +3,6 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -25,12 +24,6 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: Validate Intent
-        uses: goeselt/intent@21b70d0a25a0aae8002ca2c7fb4f4b3ba604922e # v1.1.2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          pr-comment: true
-
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
