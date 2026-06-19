@@ -1,0 +1,45 @@
+---
+name: 'Remark'
+description: 'Upsert shared pull request comments with independently replaceable H1 sections.'
+author: 'goeselt'
+
+branding:
+  icon: message-square
+  color: blue
+
+inputs:
+  github-token:
+    description: 'GitHub token for reading and writing PR comments.'
+    required: false
+    default: ${{ github.token }}
+  pr-number:
+    description: 'Pull request number. Defaults to the current pull_request or PR issue_comment event.'
+    required: false
+  body:
+    description: 'Inline Markdown content to write. H1 headings define replaceable sections. Mutually exclusive with body-file.'
+    required: false
+  body-file:
+    description: 'Path to a Markdown file to write. H1 headings define replaceable sections. Relative paths use GITHUB_WORKSPACE.'
+    required: false
+  comment-key:
+    description: 'Identifier for the target comment. Use distinct keys for multiple independent comments per PR.'
+    required: false
+    default: 'default'
+  mode:
+    description: 'upsert: find by comment-key, update or create. create: always post a new comment.'
+    required: false
+    default: 'upsert'
+  skip-unchanged:
+    description: 'Skip updating an existing upsert comment when the rendered body is unchanged except for the timestamp footer.'
+    required: false
+    default: 'false'
+
+outputs:
+  comment-id:
+    description: 'Numeric ID of the written comment.'
+  comment-url:
+    description: 'HTML URL of the written comment.'
+
+runs:
+  using: node24
+  main: index.js
