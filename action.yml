@@ -1,5 +1,5 @@
 ---
-name: 'Remark'
+name: 'Remark Sections'
 description: 'Upsert shared pull request comments with independently replaceable H1 sections.'
 author: 'goeselt'
 
