@@ -10,6 +10,30 @@ const MAX_ERROR_BODY_CHARS = 500
 
 // --- HTTP transport -------------------------------------------------------------------------------------------------
 
+function githubApiBase() {
+  const base = new URL(process.env.GITHUB_API_URL || 'https://api.github.com')
+  if (base.protocol !== 'https:') throw new Error(`GITHUB_API_URL must use https, got ${base.protocol}`)
+  return base
+}
+
+function requestOptions(method, path, token, payload) {
+  const base = githubApiBase()
+  const basePath = base.pathname.replace(/\/+$/, '')
+  return {
+    hostname: base.hostname,
+    port: base.port || undefined,
+    path: `${basePath}${path}`,
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'remark',
+      ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}),
+    },
+  }
+}
+
 function summarizeErrorBody(raw) {
   const text = String(raw ?? '')
     .replace(/\s+/g, ' ')
@@ -27,18 +51,7 @@ function request(method, path, token, body) {
       settled = true
       fn(value)
     }
-    const options = {
-      hostname: 'api.github.com',
-      path,
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'remark',
-        ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : {}),
-      },
-    }
+    const options = requestOptions(method, path, token, payload)
 
     const req = https.request(options, (res) => {
       const chunks = []
@@ -148,6 +161,7 @@ function updateComment(token, repo, commentId, body, _request = request) {
 
 module.exports = {
   request,
+  requestOptions,
   listComments,
   getAuthenticatedLogin,
   isOwnGeneratedComment,
