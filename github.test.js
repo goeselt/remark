@@ -6,6 +6,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const {
   request,
+  requestOptions,
   listComments,
   getAuthenticatedLogin,
   findComment,
@@ -282,5 +283,24 @@ test('request truncates long HTTP error bodies', async () => {
     )
   } finally {
     https.request = originalRequest
+  }
+})
+
+test('requestOptions uses GITHUB_API_URL including enterprise path prefix', () => {
+  const previous = process.env.GITHUB_API_URL
+  process.env.GITHUB_API_URL = 'https://company.ghe.com/api/v3/'
+
+  try {
+    const options = requestOptions(
+      'POST',
+      '/repos/owner/repo/issues/7/comments',
+      'token',
+      JSON.stringify({ body: 'x' }),
+    )
+    assert.equal(options.hostname, 'company.ghe.com')
+    assert.equal(options.path, '/api/v3/repos/owner/repo/issues/7/comments')
+  } finally {
+    if (previous === undefined) delete process.env.GITHUB_API_URL
+    else process.env.GITHUB_API_URL = previous
   }
 })
