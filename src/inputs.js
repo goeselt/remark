@@ -5,23 +5,24 @@ const path = require('node:path')
 
 const BODY_FILE_LIMIT_BYTES = 65_000
 
-// --- Raw inputs ------------------------------------------------------------------------------------------------------
+// -- Raw inputs -------------------------------------------------------------------------------------------------------
 
 function input(name, env = process.env) {
   return env[`INPUT_${name}`] ?? ''
 }
 
-// --- Primitive parsing ----------------------------------------------------------------------------------------------
+// -- Primitive parsing ------------------------------------------------------------------------------------------------
 
 function parsePositiveInteger(name, raw) {
-  const n = Number(raw)
-  if (!Number.isInteger(n) || n <= 0) {
+  const text = String(raw).trim()
+  const n = Number(text)
+  if (!/^[0-9]+$/.test(text) || !Number.isSafeInteger(n) || n <= 0) {
     throw new Error(`${name.toLowerCase()} must be a positive integer, got ${JSON.stringify(raw)}`)
   }
   return n
 }
 
-// --- Pull request number --------------------------------------------------------------------------------------------
+// -- Pull request number ----------------------------------------------------------------------------------------------
 
 function eventPrNumber(env = process.env, fsImpl = fs) {
   const eventPath = env.GITHUB_EVENT_PATH
@@ -52,7 +53,7 @@ function prNumberInput(name, env = process.env, fsImpl = fs) {
   throw new Error(`${name.toLowerCase()} input is required when the event payload has no pull request number`)
 }
 
-// --- Comment body ---------------------------------------------------------------------------------------------------
+// -- Comment body -----------------------------------------------------------------------------------------------------
 
 function containedPath(root, file) {
   const relative = path.relative(root, file)
@@ -66,7 +67,10 @@ function bodyInput(env = process.env, fsImpl = fs) {
   if (bodyFile && body.trim()) {
     throw new Error('body and body-file inputs are mutually exclusive')
   }
-  if (!bodyFile) return body
+  if (!bodyFile) {
+    if (!body.trim()) throw new Error('set either the body or body-file input')
+    return body
+  }
 
   if (path.isAbsolute(bodyFile)) {
     throw new Error('body-file must be a relative path inside GITHUB_WORKSPACE')
@@ -74,6 +78,7 @@ function bodyInput(env = process.env, fsImpl = fs) {
 
   const workspace = env.GITHUB_WORKSPACE || process.cwd()
   const file = path.resolve(workspace, bodyFile)
+  let content
   try {
     const root = fsImpl.realpathSync(workspace)
     const resolved = fsImpl.realpathSync(file)
@@ -87,13 +92,16 @@ function bodyInput(env = process.env, fsImpl = fs) {
       throw new Error(`file is ${stat.size} bytes, which exceeds the ${BODY_FILE_LIMIT_BYTES} byte limit`)
     }
 
-    return fsImpl.readFileSync(resolved, 'utf8')
+    content = fsImpl.readFileSync(resolved, 'utf8')
   } catch (err) {
     throw new Error(`body-file ${JSON.stringify(bodyFile)} could not be read: ${err.message}`, { cause: err })
   }
+
+  if (!content.trim()) throw new Error(`body-file ${JSON.stringify(bodyFile)} is empty`)
+  return content
 }
 
-// --- Enumerated inputs ----------------------------------------------------------------------------------------------
+// -- Enumerated inputs ------------------------------------------------------------------------------------------------
 
 function booleanInput(name, env = process.env) {
   const raw = input(name, env).trim().toLowerCase()
@@ -121,7 +129,7 @@ function commentKeyInput(name, env = process.env) {
   return raw
 }
 
-// --- Public API ------------------------------------------------------------------------------------------------------
+// -- Public API -------------------------------------------------------------------------------------------------------
 
 function readInputs(env = process.env, fsImpl = fs) {
   return {

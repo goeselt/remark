@@ -2,9 +2,20 @@
 
 GitHub Action that creates and updates pull request comments with stable Markdown section markers.
 
-Use Remark when several workflow steps should share one PR comment without overwriting each other. The action finds a
-comment by `comment-key`, updates it in place by default, and can merge independently replaceable sections from H1
-headlines.
+Most commenting actions either post a new comment on every run or blindly overwrite the last one. Remark keeps a single
+comment coherent across many workflow steps:
+
+- **One comment, many steps.** Steps share a PR comment by `comment-key` instead of flooding the pull request with one
+  comment per check.
+- **Section-level updates.** Each H1 headline becomes an independently replaceable section, so a step rewrites only its
+  own section and leaves the rest intact.
+- **Idempotent by default.** Re-runs update the existing comment in place instead of posting duplicates.
+- **Only touches its own comments.** Remark reuses a comment only when it recognizes its own generated output -- the
+  hidden marker plus timestamp footer, written by the token's own login or a bot account. A human comment that merely
+  contains the marker is left alone.
+- **Append-only when you need it.** Switch to `mode: create` for logs or audit trails that should accumulate.
+
+Use Remark when several workflow steps should share one PR comment without overwriting each other.
 
 ## Getting Started
 
@@ -20,7 +31,7 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - uses: goeselt/remark@v1
+      - uses: goeselt/remark@<sha>
         with:
           comment-key: ci-report
           body: |
@@ -36,13 +47,10 @@ Remark stores a hidden marker in the generated comment:
 ```
 
 Subsequent runs with the same `comment-key` update that comment instead of creating a new one. When `body` contains H1
-headlines, each H1 becomes a section; matching sections are replaced and unrelated stored sections are preserved. Remark
-only reuses comments it recognizes as its own generated output -- the hidden marker plus timestamp footer, written by
-the token's own login when that login is readable, or by a bot account otherwise. A plain user comment that merely
-contains the marker is ignored.
+headlines, each H1 becomes a section; matching sections are replaced and unrelated stored sections are preserved.
 
 ```yaml
-- uses: goeselt/remark@v1
+- uses: goeselt/remark@<sha>
   with:
     comment-key: ci-report
     body: |
@@ -50,7 +58,7 @@ contains the marker is ignored.
 
       Pedant found no issues.
 
-- uses: goeselt/remark@v1
+- uses: goeselt/remark@<sha>
   with:
     comment-key: ci-report
     body: |
@@ -65,7 +73,7 @@ section.
 For append-only logs or audit trails, set `mode: create`.
 
 ```yaml
-- uses: goeselt/remark@v1
+- uses: goeselt/remark@<sha>
   with:
     comment-key: deployment-log
     mode: create
@@ -78,7 +86,7 @@ Use `body-file` when another step writes a larger Markdown report:
 ```yaml
 - run: npm test -- --reporter markdown > report.md
 
-- uses: goeselt/remark@v1
+- uses: goeselt/remark@<sha>
   with:
     comment-key: test-report
     body-file: report.md

@@ -5,6 +5,24 @@ const { buildCommentBody, rootMarker, sameGeneratedContent } = require('./commen
 const { findComment, createComment, updateComment } = require('./github.js')
 const { log, fail, setOutput } = require('./workflow.js')
 
+/**
+ * Awaits a comment write and, on HTTP 403, extends the error with the most common cause:
+ * a read-only GITHUB_TOKEN (for example on fork pull requests).
+ */
+async function withPermissionHint(promise) {
+  try {
+    return await promise
+  } catch (err) {
+    if (/HTTP 403/.test(String(err?.message))) {
+      throw new Error(
+        `${err.message} -- the github-token cannot write PR comments; grant the job "pull-requests: write" or pass a token that can comment`,
+        { cause: err },
+      )
+    }
+    throw err
+  }
+}
+
 async function run(inputs, repo, api = null) {
   const _find = api?.find ?? findComment
   const _create = api?.create ?? createComment
@@ -20,7 +38,7 @@ async function run(inputs, repo, api = null) {
   let comment
   if (inputs.mode === 'create') {
     const body = buildCommentBody(inputs.commentKey, inputs.body)
-    comment = await _create(inputs.token, repo, inputs.prNumber, body)
+    comment = await withPermissionHint(_create(inputs.token, repo, inputs.prNumber, body))
     log('comment=created')
   } else {
     const existing = await _find(inputs.token, repo, inputs.prNumber, marker)
@@ -31,11 +49,11 @@ async function run(inputs, repo, api = null) {
         comment = existing
         log('comment=unchanged')
       } else {
-        comment = await _update(inputs.token, repo, existing.id, body)
+        comment = await withPermissionHint(_update(inputs.token, repo, existing.id, body))
         log('comment=updated')
       }
     } else {
-      comment = await _create(inputs.token, repo, inputs.prNumber, body)
+      comment = await withPermissionHint(_create(inputs.token, repo, inputs.prNumber, body))
       log('comment=created')
     }
   }
