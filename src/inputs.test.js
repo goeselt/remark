@@ -37,7 +37,7 @@ function withTempDir(fn) {
   }
 }
 
-// --- prNumberInput --------------------------------------------------------------------------------------------------
+// -- prNumberInput ----------------------------------------------------------------------------------------------------
 
 test('parsePositiveInteger rules apply to inferred PR numbers', () => {
   withTempDir((dir) => {
@@ -75,7 +75,17 @@ test('prNumberInput throws when no explicit or inferred PR number exists', () =>
   assert.throws(() => prNumberInput('PR-NUMBER', {}), /event payload has no pull request number/)
 })
 
-// --- bodyInput ------------------------------------------------------------------------------------------------------
+test('prNumberInput rejects non-decimal integer notations', () => {
+  for (const raw of ['0x1f', '1e3', '+5', '-1', '0', '1.0', '']) {
+    assert.throws(
+      () => prNumberInput('PR-NUMBER', { 'INPUT_PR-NUMBER': raw }),
+      /positive integer|pull request number/,
+      `expected ${JSON.stringify(raw)} to be rejected`,
+    )
+  }
+})
+
+// -- bodyInput --------------------------------------------------------------------------------------------------------
 
 test('bodyInput returns inline body when body-file is not set', () => {
   assert.equal(bodyInput({ INPUT_BODY: '# Status\nOK' }), '# Status\nOK')
@@ -142,7 +152,19 @@ test('bodyInput throws when body-file cannot be read', () => {
   assert.throws(() => bodyInput({ 'INPUT_BODY-FILE': 'missing.md' }), /could not be read/)
 })
 
-// --- modeInput ------------------------------------------------------------------------------------------------------
+test('bodyInput throws when neither body nor body-file is set', () => {
+  assert.throws(() => bodyInput({}), /set either the body or body-file input/)
+  assert.throws(() => bodyInput({ INPUT_BODY: '   \n' }), /set either the body or body-file input/)
+})
+
+test('bodyInput throws when body-file is empty or whitespace-only', () => {
+  withTempDir((dir) => {
+    fs.writeFileSync(path.join(dir, 'report.md'), '  \n\n')
+    assert.throws(() => bodyInput({ 'INPUT_BODY-FILE': 'report.md', GITHUB_WORKSPACE: dir }), /"report.md" is empty/)
+  })
+})
+
+// -- modeInput --------------------------------------------------------------------------------------------------------
 
 test('booleanInput defaults to false when empty', () => {
   assert.equal(booleanInput('SKIP-UNCHANGED', {}), false)
@@ -177,7 +199,7 @@ test('modeInput throws on an invalid mode', () => {
   assert.throws(() => modeInput('MODE', { INPUT_MODE: 'replace' }), /must be "upsert" or "create"/)
 })
 
-// --- commentKeyInput ------------------------------------------------------------------------------------------------
+// -- commentKeyInput --------------------------------------------------------------------------------------------------
 
 test('commentKeyInput accepts a valid key', () => {
   assert.equal(commentKeyInput('COMMENT-KEY', { 'INPUT_COMMENT-KEY': 'my-key' }), 'my-key')
@@ -199,7 +221,7 @@ test('commentKeyInput throws when key contains special characters', () => {
   assert.throws(() => commentKeyInput('COMMENT-KEY', { 'INPUT_COMMENT-KEY': 'bad key!' }), /is invalid/)
 })
 
-// --- readInputs -----------------------------------------------------------------------------------------------------
+// -- readInputs -------------------------------------------------------------------------------------------------------
 
 test('readInputs returns all parsed inputs', () => {
   const inputs = readInputs(env())

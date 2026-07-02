@@ -33,14 +33,14 @@ function makeApi(comments = []) {
       return c
     },
     update: (token, repo, id, body) => {
-      const c = comments.find((c) => c.id === id)
+      const c = comments.find((comment) => comment.id === id)
       c.body = body
       return c
     },
   }
 }
 
-// --- upsert mode ----------------------------------------------------------------------------------------------------
+// -- upsert mode ------------------------------------------------------------------------------------------------------
 
 test('run creates a new comment when none exists (upsert)', async () => {
   const comments = []
@@ -175,7 +175,7 @@ test('run updates when skip-unchanged is true and content changed', async () => 
   assert.equal(updateCalled, true)
 })
 
-// --- create mode ----------------------------------------------------------------------------------------------------
+// -- create mode ------------------------------------------------------------------------------------------------------
 
 test('run always creates a new comment in create mode', async () => {
   const existingBody = `${MARKER}\ncontent`
@@ -192,7 +192,7 @@ test('run embeds section markers in create mode when body has H1 headlines', asy
   assert.ok(comments[0].body.includes('<!-- section:report -->'))
 })
 
-// --- outputs --------------------------------------------------------------------------------------------------------
+// -- outputs ----------------------------------------------------------------------------------------------------------
 
 test('run sets comment-id and comment-url outputs', async () => {
   const comments = []
@@ -217,7 +217,7 @@ test('run sets comment-id and comment-url outputs', async () => {
   }
 })
 
-// --- validation -----------------------------------------------------------------------------------------------------
+// -- validation -------------------------------------------------------------------------------------------------------
 
 test('run throws when token is empty', async () => {
   await assert.rejects(() => run(baseInputs({ token: '' }), REPO, makeApi()), /github-token/)
@@ -229,4 +229,31 @@ test('run throws when body is empty', async () => {
 
 test('run throws when repo is missing', async () => {
   await assert.rejects(() => run(baseInputs(), '', makeApi()), /GITHUB_REPOSITORY/)
+})
+
+test('run extends HTTP 403 write failures with a permission hint', async () => {
+  const api = {
+    find: () => null,
+    create: () => Promise.reject(new Error('GitHub API POST /repos/owner/repo/issues/7/comments --> HTTP 403')),
+    update: () => {
+      throw new Error('update should not be called')
+    },
+  }
+
+  await assert.rejects(() => run(baseInputs(), REPO, api), /HTTP 403.*pull-requests: write/)
+})
+
+test('run passes through non-403 write failures unchanged', async () => {
+  const api = {
+    find: () => null,
+    create: () => Promise.reject(new Error('GitHub API POST ... --> HTTP 500')),
+    update: () => {
+      throw new Error('update should not be called')
+    },
+  }
+
+  await assert.rejects(
+    () => run(baseInputs(), REPO, api),
+    (err) => /HTTP 500/.test(err.message) && !/pull-requests: write/.test(err.message),
+  )
 })

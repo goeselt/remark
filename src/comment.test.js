@@ -19,7 +19,7 @@ const {
 
 const FIXED_DATE = new Date('2024-06-18T14:32:00Z')
 
-// --- slugify --------------------------------------------------------------------------------------------------------
+// -- slugify ----------------------------------------------------------------------------------------------------------
 
 test('slugify converts uppercase to lowercase', () => {
   assert.equal(slugify('Status Report'), 'status-report')
@@ -59,7 +59,7 @@ test('slugify handles existing hyphens', () => {
   assert.equal(slugify('already-slugified'), 'already-slugified')
 })
 
-// --- parseSections --------------------------------------------------------------------------------------------------
+// -- parseSections ----------------------------------------------------------------------------------------------------
 
 test('parseSections returns null when no H1 headlines present', () => {
   assert.equal(parseSections('Just some text\n## Sub only'), null)
@@ -110,7 +110,7 @@ test('parseSections treats a H1 with no following content as a valid section', (
   assert.deepEqual(sections, [{ slug: 'status', content: '# Status' }])
 })
 
-// --- parseStoredSections --------------------------------------------------------------------------------------------
+// -- parseStoredSections ----------------------------------------------------------------------------------------------
 
 test('parseStoredSections returns empty array when no section markers present', () => {
   assert.deepEqual(parseStoredSections('no markers'), [])
@@ -149,7 +149,7 @@ test('parseStoredSections handles multi-line section content', () => {
   assert.deepEqual(parseStoredSections(body), [{ slug: 'report', content: 'line1\nline2\nline3' }])
 })
 
-// --- mergeSections --------------------------------------------------------------------------------------------------
+// -- mergeSections ----------------------------------------------------------------------------------------------------
 
 test('mergeSections replaces a stored section with an incoming one of the same slug', () => {
   const stored = [{ slug: 'status', content: 'old' }]
@@ -194,7 +194,7 @@ test('mergeSections handles empty stored', () => {
   assert.deepEqual(mergeSections([], incoming), incoming)
 })
 
-// --- buildFooter ----------------------------------------------------------------------------------------------------
+// -- buildFooter ------------------------------------------------------------------------------------------------------
 
 test('buildFooter produces a correctly formatted UTC timestamp', () => {
   const footer = buildFooter(FIXED_DATE)
@@ -223,7 +223,7 @@ test('sameGeneratedContent accepts the legacy lowercase generated footer', () =>
   assert.equal(sameGeneratedContent(current, legacy), true)
 })
 
-// --- buildCommentBody ------------------------------------------------------------------------------------------------
+// -- buildCommentBody -------------------------------------------------------------------------------------------------
 
 test('buildCommentBody includes the root marker', () => {
   const body = buildCommentBody('default', 'Hello world', null, FIXED_DATE)

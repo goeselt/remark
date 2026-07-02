@@ -19,6 +19,9 @@ const {
 } = require('./github.js')
 const { buildCommentBody } = require('./comment.js')
 
+// GitHub Actions always provides GITHUB_API_URL; the transport tests below rely on it being set.
+if (!process.env.GITHUB_API_URL) process.env.GITHUB_API_URL = 'https://api.github.com'
+
 const MARKER = '<!-- remark:default -->'
 const FIXED_DATE = new Date('2024-06-18T14:32:00Z')
 const LOGIN = 'github-actions[bot]'
@@ -107,6 +110,13 @@ test('getAuthenticatedLogin returns null when GitHub omits login', async () => {
 test('getAuthenticatedLogin returns null when GET /user is inaccessible (installation token)', async () => {
   const mockRequest = () => Promise.reject(new Error('HTTP 403'))
   assert.equal(await getAuthenticatedLogin('token', mockRequest), null)
+})
+
+test('getAuthenticatedLogin rethrows non-4xx failures instead of degrading the ownership check', async () => {
+  const network = () => Promise.reject(new Error('read ECONNRESET'))
+  const server = () => Promise.reject(new Error('GitHub API GET /user --> HTTP 502'))
+  await assert.rejects(() => getAuthenticatedLogin('token', network), /ECONNRESET/)
+  await assert.rejects(() => getAuthenticatedLogin('token', server), /HTTP 502/)
 })
 
 test('findComment matches a Bot author when the token identity is unknown', async () => {
@@ -299,6 +309,24 @@ test('requestOptions uses GITHUB_API_URL including enterprise path prefix', () =
     )
     assert.equal(options.hostname, 'company.ghe.com')
     assert.equal(options.path, '/api/v3/repos/owner/repo/issues/7/comments')
+  } finally {
+    if (previous === undefined) delete process.env.GITHUB_API_URL
+    else process.env.GITHUB_API_URL = previous
+  }
+})
+
+test('requestOptions throws when GITHUB_API_URL is empty or unset', () => {
+  const previous = process.env.GITHUB_API_URL
+
+  try {
+    for (const value of [undefined, '']) {
+      if (value === undefined) delete process.env.GITHUB_API_URL
+      else process.env.GITHUB_API_URL = value
+      assert.throws(
+        () => requestOptions('POST', '/repos/owner/repo/issues/7/comments', 'token', JSON.stringify({ body: 'x' })),
+        /GITHUB_API_URL is not set/,
+      )
+    }
   } finally {
     if (previous === undefined) delete process.env.GITHUB_API_URL
     else process.env.GITHUB_API_URL = previous

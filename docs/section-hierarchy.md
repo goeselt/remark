@@ -289,7 +289,7 @@ For generated reports, prefer `body-file` over embedding long Markdown in workfl
 ```yaml
 - run: npm test -- --reporter markdown > report.md
 
-- uses: goeselt/remark@v1
+- uses: goeselt/remark@<sha>
   with:
     comment-key: test-report
     body-file: report.md

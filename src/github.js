@@ -8,10 +8,12 @@ const MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 const MAX_COMMENT_PAGES = 10
 const MAX_ERROR_BODY_CHARS = 500
 
-// --- HTTP transport -------------------------------------------------------------------------------------------------
+// -- HTTP transport ---------------------------------------------------------------------------------------------------
 
 function githubApiBase() {
-  const base = new URL(process.env.GITHUB_API_URL || 'https://api.github.com')
+  const raw = process.env.GITHUB_API_URL
+  if (!raw) throw new Error('GITHUB_API_URL is not set; cannot resolve the GitHub API base URL')
+  const base = new URL(raw)
   if (base.protocol !== 'https:') throw new Error(`GITHUB_API_URL must use https, got ${base.protocol}`)
   return base
 }
@@ -91,7 +93,7 @@ function request(method, path, token, body) {
   })
 }
 
-// --- Comment discovery ----------------------------------------------------------------------------------------------
+// -- Comment discovery ------------------------------------------------------------------------------------------------
 
 /** Fetches all comments for a PR, handling pagination. */
 async function listComments(token, repo, prNumber, _request = request) {
@@ -112,17 +114,20 @@ async function listComments(token, repo, prNumber, _request = request) {
 /**
  * Returns the login of the token's own identity, or null when it cannot be determined.
  *
- * The default Actions GITHUB_TOKEN is a GitHub App installation token. GET /user returns
- * HTTP 403 for installation tokens because an installation has no associated user, so the
- * login is treated as unknown rather than fatal and comment matching degrades to the
- * generated-comment shape plus a Bot author.
+ * The default Actions GITHUB_TOKEN is a GitHub App installation token.
+ * GET /user returns HTTP 403 for installation tokens because an installation has no associated user, so the login is
+ * treated as unknown rather than fatal and comment matching degrades to the generated-comment shape plus a Bot author.
+ *
+ * Only HTTP 4xx responses degrade this way; network errors and HTTP 5xx are rethrown so a transient failure surfaces
+ * instead of silently weakening the ownership check.
  */
 async function getAuthenticatedLogin(token, _request = request) {
   let user
   try {
     user = await _request('GET', '/user', token)
-  } catch {
-    return null
+  } catch (err) {
+    if (/HTTP 4\d\d/.test(String(err?.message))) return null
+    throw err
   }
   if (!user || typeof user.login !== 'string' || !user.login) return null
   return user.login
@@ -131,9 +136,9 @@ async function getAuthenticatedLogin(token, _request = request) {
 /**
  * Decides whether a comment is one Remark previously generated for this marker.
  *
- * The comment must have the generated shape (root marker plus footer). When the token
- * identity is known it must also be the author; when it cannot be determined, matching is
- * restricted to Bot authors as a best-effort defense against marker spoofing by human users.
+ * The comment must have the generated shape (root marker plus footer).
+ * When the token identity is known it must also be the author; when it cannot be determined, matching is restricted to
+ * Bot authors as a best-effort defense against marker spoofing by human users.
  */
 function isOwnGeneratedComment(comment, marker, login) {
   if (!isGeneratedCommentBody(comment?.body, marker)) return false
@@ -147,7 +152,7 @@ async function findComment(token, repo, prNumber, marker, _request = request) {
   return comments.find((c) => isOwnGeneratedComment(c, marker, login)) ?? null
 }
 
-// --- Comment writes -------------------------------------------------------------------------------------------------
+// -- Comment writes ---------------------------------------------------------------------------------------------------
 
 /** Posts a new PR comment and returns the created comment object. */
 function createComment(token, repo, prNumber, body, _request = request) {

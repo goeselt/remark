@@ -2,27 +2,27 @@
 
 ## Design
 
-Pure Node.js standard library -- no runtime dependencies, no build step. `index.js` is committed as-is and referenced
-directly by `action.yml` (`runs.using: node24`).
+Pure Node.js standard library -- no runtime dependencies, no build step. The source lives under `src/`. `src/index.js`
+is committed as-is and referenced directly by `action.yml` (`runs.using: node24`, `main: src/index.js`).
 
 Remark has one job: write a pull request comment, either as a fresh comment or as an update to the comment identified by
 `comment-key`. H1 headings in the incoming body are treated as independently replaceable sections so separate workflow
 steps can share one generated comment.
 
-| File          | Responsibility                                                                     |
-| ------------- | ---------------------------------------------------------------------------------- |
-| `action.yml`  | Public GitHub Action metadata: inputs, outputs, runtime, and branding.             |
-| `index.js`    | Event adapter: input validation, comment-key lookup, create/update flow, outputs.  |
-| `comment.js`  | Comment markers, section parsing/merging/rendering, footer, and size guard.        |
-| `github.js`   | GitHub REST calls for listing, creating, and updating issue comments.              |
-| `inputs.js`   | GitHub Action input parsing and validation.                                        |
-| `workflow.js` | Workflow command escaping, logs, errors, warnings, and outputs.                    |
-| `*.test.js`   | Unit tests with fake API/request boundaries; no network or real PR comment writes. |
-| `README.md`   | User-facing examples, section model, input reference, and output reference.        |
+| File              | Responsibility                                                                     |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| `action.yml`      | Public GitHub Action metadata: inputs, outputs, runtime, and branding.             |
+| `src/index.js`    | Event adapter: input validation, comment-key lookup, create/update flow, outputs.  |
+| `src/comment.js`  | Comment markers, section parsing/merging/rendering, footer, and size guard.        |
+| `src/github.js`   | GitHub REST calls for listing, creating, and updating issue comments.              |
+| `src/inputs.js`   | GitHub Action input parsing and validation.                                        |
+| `src/workflow.js` | Workflow command escaping, logs, errors, and outputs.                              |
+| `src/*.test.js`   | Unit tests with fake API/request boundaries; no network or real PR comment writes. |
+| `README.md`       | User-facing examples, section model, input reference, and output reference.        |
 
-Keep `index.js` boring. It should read as: parse inputs, resolve the repository, find or create the target comment,
-write outputs, and set the exit code. Prefer moving formatting into `comment.js`, GitHub API behavior into `github.js`,
-and Actions input/output details into `inputs.js` or `workflow.js`.
+Keep `src/index.js` boring. It should read as: parse inputs, resolve the repository, find or create the target comment,
+write outputs, and set the exit code. Prefer moving formatting into `src/comment.js`, GitHub API behavior into
+`src/github.js`, and Actions input/output details into `src/inputs.js` or `src/workflow.js`.
 
 ## Behavior Contract
 
@@ -62,15 +62,15 @@ Use the test files as the fastest way to rediscover the project after time away:
 
 If you change:
 
-- Comment marker syntax, H1 slugging, section merge behavior, footer text, or size limits, update `comment.js` and
-  `comment.test.js`.
-- GitHub REST behavior, pagination, request timeouts, response limits, or comment matching, update `github.js` and
-  `github.test.js`.
+- Comment marker syntax, H1 slugging, section merge behavior, footer text, or size limits, update `src/comment.js` and
+  `src/comment.test.js`.
+- GitHub REST behavior, pagination, request timeouts, response limits, or comment matching, update `src/github.js` and
+  `src/github.test.js`.
 - Inputs, defaults, `body-file`, PR-number inference, validation errors, output names, logs, or exit behavior, update
-  `inputs.js`, `index.js`, `workflow.js`, their tests, `action.yml`, and usually `README.md`.
-- Workflow command escaping or output writing, update `workflow.js` and `workflow.test.js`.
+  `src/inputs.js`, `src/index.js`, `src/workflow.js`, their tests, `action.yml`, and usually `README.md`.
+- Workflow command escaping or output writing, update `src/workflow.js` and `src/workflow.test.js`.
 - Public usage examples or behavior guarantees, update `README.md`.
-- Section ownership or replacement semantics, update `comment.js`, `comment.test.js`, readme, and
+- Section ownership or replacement semantics, update `src/comment.js`, `src/comment.test.js`, readme, and
   `docs/section-hierarchy.md`.
 
 ## Invariants
